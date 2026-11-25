@@ -67,10 +67,11 @@ local function buildHeader(parent, scale)
 	inner.Parent = header
 
 	local hamburger = Buttons.create({
-		text = "☰",
+		-- ASCII only: executor fonts often lack the box-drawing glyphs.
+		text = "MENU",
 		role = "icon",
 		scale = scale,
-		width = 44,
+		width = 56,
 		parent = header,
 		order = 1,
 		name = "Hamburger",
@@ -82,7 +83,7 @@ local function buildHeader(parent, scale)
 	local brand = Instance.new("Frame")
 	brand.Name = "Brand"
 	brand.BackgroundTransparency = 1
-	brand.Size = UDim2.new(1, -(Layout.target(scale, 150)), 1, 0)
+	brand.Size = UDim2.new(1, -(Layout.target(scale, 200)), 1, 0)
 	brand.LayoutOrder = 2
 	brand.Parent = header
 
@@ -118,10 +119,10 @@ local function buildHeader(parent, scale)
 	tagline.Parent = brand
 
 	local themeButton = Buttons.create({
-		text = "◐",
+		text = "THEME",
 		role = "icon",
 		scale = scale,
-		width = 44,
+		width = 56,
 		parent = header,
 		order = 3,
 		name = "ThemeButton",
@@ -136,7 +137,7 @@ local function buildHeader(parent, scale)
 	})
 
 	local close = Buttons.create({
-		text = "✕",
+		text = "X",
 		role = "icon",
 		scale = scale,
 		width = 44,
@@ -170,10 +171,11 @@ local function buildRail(parent, metrics)
 	rail.Name = "Rail"
 	rail.BackgroundColor3 = Theme.color("rail")
 	rail.BorderSizePixel = 0
-	rail.ScrollBarThickness = 0
+	rail.ScrollBarThickness = 2
 	rail.CanvasSize = UDim2.new(0, 0, 0, 0)
 	rail.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	rail.Size = UDim2.new(0, metrics.railWidth, 1, -Layout.target(metrics.scale, 46))
+	rail.ClipsDescendants = true
 	rail.LayoutOrder = 2
 	rail.Parent = parent
 
@@ -201,7 +203,7 @@ local function buildDrawer(parent, metrics)
 	drawer.ClipsDescendants = true
 	drawer.Visible = false
 	drawer.ZIndex = 20
-	drawer.Size = UDim2.new(0, math.floor(230 * metrics.scale), 1, 0)
+	drawer.Size = UDim2.new(0, math.min(math.floor(230 * metrics.scale), math.floor(metrics.windowWidth * 0.8)), 1, 0)
 	drawer.Position = UDim2.new(0, -300, 0, 0)
 	drawer.Parent = parent
 
@@ -311,9 +313,13 @@ local function setDrawer(open)
 
 	drawer.Visible = true
 	local target = state.drawerOpen and UDim2.new(0, 0, 0, 0) or UDim2.new(0, -320, 0, 0)
+	local animated = false
 	if Config.ui.animations then
-		TweenService:Create(drawer, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = target }):Play()
-	else
+		animated = pcall(function()
+			TweenService:Create(drawer, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = target }):Play()
+		end)
+	end
+	if not animated then
 		drawer.Position = target
 	end
 	if scrim then
@@ -403,8 +409,14 @@ function Shell.reflow(metrics)
 		rail.Visible = #state.nav.tabs > 0
 	end
 	if content then
-		content.Size = UDim2.new(1, metrics.wide and -(metrics.railWidth + metrics.gutter) or 0, 1, -Layout.target(metrics.scale, 46 + 18))
-		content.Position = UDim2.new(0, metrics.wide and (metrics.railWidth + metrics.gutter) or 0, 0, Layout.target(metrics.scale, 46))
+		-- Compact: the drawer overlays, so content keeps the full row and a
+		-- hard floor rather than being squeezed beside the rail.
+		local beside = metrics.wide
+		local offset = beside and (metrics.railWidth + metrics.gutter) or 0
+		content.Size = UDim2.new(1, -(offset), 0, 0)
+		content.Size = UDim2.new(1, -offset, 1, -Layout.target(metrics.scale, 46 + 18))
+		content.Position = UDim2.new(0, offset, 0, Layout.target(metrics.scale, 46))
+		content.ClipsDescendants = true
 	end
 
 	-- Labels disappear on compact instead of shrinking into ellipses.
@@ -420,7 +432,7 @@ function Shell.reflow(metrics)
 	end
 
 	if drawer then
-		drawer.Size = UDim2.new(0, math.floor(230 * metrics.scale), 1, 0)
+		drawer.Size = UDim2.new(0, math.min(math.floor(230 * metrics.scale), math.floor(metrics.windowWidth * 0.8)), 1, 0)
 	end
 	if bar then
 		bar.Size = UDim2.new(1, 0, 0, Layout.target(metrics.scale, 18))
@@ -547,6 +559,9 @@ function Shell.mount(ctx, metrics)
 					fill = true,
 					onClick = function()
 						Shell.select(record.id)
+						if state.metrics and not state.metrics.wide then
+							setDrawer(false)
+						end
 					end,
 				})
 				UIManager.registerButton(railButton)

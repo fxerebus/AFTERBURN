@@ -68,14 +68,31 @@ function Layout.gutter(scale)
 	return math.max(4, math.floor(Config.layout.gutter * Layout.clampScale(scale or 1)))
 end
 
+-- Roblox GUI pixels are physical. A 1080 px phone would otherwise read as a
+-- desktop and never reach the compact branch. Portrait-ish viewports are divided
+-- by a density derived from their short side so the breakpoints stay in
+-- device-independent units; landscape viewports stay 1:1.
+function Layout.density(width, height)
+	local w = tonumber(width) or 0
+	local h = tonumber(height) or 0
+	-- Only clearly portrait viewports are treated as phones; a 600x900 tablet
+	-- and every landscape desktop stay 1:1.
+	if w <= 0 or h <= w * 1.6 then
+		return 1
+	end
+	return clamp(math.min(w, h) / 420, 1, 3)
+end
+
 -- Everything a view needs in one table, derived from the viewport.
 function Layout.metrics(width, height)
 	local w = tonumber(width) or 0
 	local h = tonumber(height) or 0
-	local scale = Layout.scaleFor(w)
-	local compact = w < Config.layout.compactBelow
-	local medium = w >= Config.layout.compactBelow and w < Config.layout.mediumBelow
-	local wide = w >= Config.layout.wideAt
+	-- Breakpoints read the normalised width, geometry keeps physical pixels.
+	local logical = w / Layout.density(w, h)
+	local scale = Layout.scaleFor(logical)
+	local compact = logical < Config.layout.compactBelow
+	local medium = logical >= Config.layout.compactBelow and logical < Config.layout.mediumBelow
+	local wide = logical >= Config.layout.wideAt
 
 	local railWidth = if_else(compact, 56, 168)
 	local target = Layout.target(scale)
@@ -83,6 +100,7 @@ function Layout.metrics(width, height)
 	return {
 		width = w,
 		height = h,
+		logicalWidth = math.floor(logical),
 		scale = scale,
 		compact = compact,
 		medium = medium,
@@ -93,9 +111,14 @@ function Layout.metrics(width, height)
 		targetPx = math.floor(target * scale + 0.5), -- effective, for assertions
 		gutter = Layout.gutter(scale),
 		railWidth = math.ceil(railWidth * scale),
-		contentWidth = math.max(120, math.floor((w - (if_else(wide, railWidth, 0) + 24)) * 0.6)),
+		-- Content must keep real width; at compact the drawer overlays it, so
+		-- nothing is subtracted for the rail.
+		contentWidth = math.max(Config.layout.contentMin, math.floor(w - (if_else(wide, railWidth * scale, 0) + 2 * Layout.gutter(scale)))),
 		windowWidth = clamp(math.floor(w * (if_else(compact, 0.94, 0.82))), Config.layout.windowMin, Config.layout.windowMax),
-		windowHeight = math.floor(h * (if_else(compact, 0.86, 0.8))),
+		windowHeightCap = math.floor(h * 0.9),
+		-- Height also capped at 90% of the viewport so the window never runs off
+		-- the bottom of a phone screen.
+		windowHeight = math.floor(math.min(h * (if_else(compact, 0.86, 0.8)), h * 0.9)),
 	}
 end
 

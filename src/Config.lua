@@ -47,6 +47,7 @@ Config.layout = {
 	scaleUpAbove = 1024, -- only past here does the UI grow past 1.0
 	scaleDownBelow = 480,
 	gutter = 8,
+	contentMin = 168, -- content column never narrows past this
 	windowMax = 1180,
 	windowMin = 300,
 }

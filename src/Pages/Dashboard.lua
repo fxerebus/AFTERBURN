@@ -81,10 +81,12 @@ local function valueRow(body, label, badged, scale, order)
 	holder.LayoutOrder = order
 	holder.Parent = body
 
+	-- Vertical flow: label, then value, then chip. A horizontal row with a
+	-- fixed -60 offset collided as soon as the content column got narrow.
 	local row = Instance.new("UIListLayout")
-	row.FillDirection = Enum.FillDirection.Horizontal
-	row.VerticalAlignment = Enum.VerticalAlignment.Center
-	row.Padding = UDim.new(0, 4)
+	row.FillDirection = Enum.FillDirection.Vertical
+	row.VerticalAlignment = Enum.VerticalAlignment.Top
+	row.Padding = UDim.new(0, 2)
 	row.SortOrder = Enum.SortOrder.LayoutOrder
 	row.Parent = holder
 
@@ -96,7 +98,8 @@ local function valueRow(body, label, badged, scale, order)
 	text.TextColor3 = Theme.color("textDim")
 	text.TextSize = Layout.target(scale, 10)
 	text.TextXAlignment = Enum.TextXAlignment.Left
-	text.Size = UDim2.new(1, -60, 0, 0)
+	text.Size = UDim2.new(1, 0, 0, 0)
+	text.TextWrapped = true
 	text.AutomaticSize = Enum.AutomaticSize.Y
 	text.LayoutOrder = 1
 	text.Parent = holder
