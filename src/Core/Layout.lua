@@ -21,6 +21,7 @@ local function if_else(cond, a, b)
 	end
 	return b
 end
+Layout.if_else = if_else
 
 local function lerp(a, b, t)
 	return a + (b - a) * t

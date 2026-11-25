@@ -66,6 +66,16 @@ end
 
 --- Stamp data for the bundle header. Never fails: a missing VERSION or a
 --- non-git checkout still produces a build, just an unidentifiable one.
+-- Build time, fixed when SOURCE_DATE_EPOCH is set. Without this a rebuild a
+-- second later differs in the header alone, so byte identity could not be proven.
+function Build.stampTime()
+	local epoch = os.getenv("SOURCE_DATE_EPOCH")
+	if epoch and epoch:match("^%d+$") then
+		return os.date("!%Y-%m-%dT%H:%M:%SZ", tonumber(epoch))
+	end
+	return os.date("!%Y-%m-%dT%H:%M:%SZ")
+end
+
 function Build.stamp(root)
 	local version = readFile(root .. "/VERSION")
 	if version then
@@ -178,7 +188,7 @@ function Build.run(opts)
 	local head = table.concat({
 		"--[[",
 		"	AFTERBURN — generated bundle. Do not edit; edit src/ and run `lua Build.lua`.",
-		("	Version %s — commit %s — built %s"):format(version, commit, os.date("!%Y-%m-%dT%H:%M:%SZ")),
+		("	Version %s — commit %s — built %s"):format(version, commit, Build.stampTime()),
 		("	%s modules, built from the ORDER list in Build.lua."):format(#ORDER),
 		"	Target: Android first (Arceus X / Delta), Windows second.",
 		"]]",

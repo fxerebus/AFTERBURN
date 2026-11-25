@@ -49,6 +49,7 @@ end
 
 require("tests.suite_theme")
 require("tests.suite_layout")
+require("tests.suite_enums")
 require("tests.suite_nav")
 require("tests.suite_build")
 require("tests.suite_dashboard")

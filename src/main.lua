@@ -114,7 +114,7 @@ local function faultBanner(message, stage)
 	footer.TextXAlignment = Enum.TextXAlignment.Left
 	footer.TextWrapped = true
 	footer.Size = UDim2.new(1, 0, 0, 0)
-	footer.AutomaticSize = Enum.AutoSize and Enum.AutomaticSize.Y or Enum.AutomaticSize.Y
+	footer.AutomaticSize = Enum.AutomaticSize.Y
 	footer.LayoutOrder = 3
 	footer.Parent = banner
 

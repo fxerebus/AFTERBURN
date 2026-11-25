@@ -453,7 +453,7 @@ function Shell.reflow(metrics)
 		header.Size = UDim2.new(1, 0, 0, Layout.target(metrics.scale, 46))
 	end
 	local tabs = metrics.navMode == "tabs"
-	local stripH = if_else(tabs, Layout.target(metrics.scale, 52), 0)
+	local stripH = Layout.if_else(tabs, Layout.target(metrics.scale, 52), 0)
 
 	-- MENU only drives the drawer, which does not exist at compact.
 	if state.parts.hamburger then
@@ -474,7 +474,7 @@ function Shell.reflow(metrics)
 	end
 	if content then
 		-- Compact: no rail beside it, so the full body width and no offset.
-		local offset = if_else(tabs, 0, (metrics.wide and (metrics.railWidth + metrics.gutter)) or 0)
+		local offset = Layout.if_else(tabs, 0, (metrics.wide and (metrics.railWidth + metrics.gutter)) or 0)
 		content.Size = UDim2.new(1, -offset, 1, -(Layout.target(metrics.scale, 46 + 18) + stripH))
 		content.Position = UDim2.new(0, offset, 0, stripH)
 		content.ClipsDescendants = true

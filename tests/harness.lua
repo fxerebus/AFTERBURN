@@ -64,11 +64,58 @@ end
 
 -------------------------------------------------------------- deep proxy ----
 
--- Enum.FillDirection.Horizontal, Enum.Font.Gotham, Enum.AutomaticSize.Y — every
--- level resolves to its own name, memoised so identity is stable.
+-- Enum allowlist: only names Roblox actually defines. A free proxy accepted any
+-- key, which is how `Enum.AutoSize` reached a phone and aborted the boot —
+-- Roblox raises on an unknown member, so the mock has to raise as well.
+local ENUM_MEMBERS = {
+	AutomaticSize = { None = true, X = true, Y = true, XY = true },
+	EasingDirection = { In = true, Out = true, InOut = true },
+	EasingStyle = { Linear = true, Sine = true, Back = true, Quad = true, Quart = true,
+		Quint = true, Bounce = true, Elastic = true, Exponential = true, Circular = true, Cubic = true },
+	FillDirection = { Horizontal = true, Vertical = true },
+	Font = { Legacy = true, Arial = true, ArialBold = true, SourceSans = true, SourceSansBold = true,
+		SourceSansSemibold = true, SourceSansLight = true, SourceSansItalic = true, Bodoni = true,
+		Garamond = true, Cartoon = true, Code = true, Highway = true, SciFi = true, Arcade = true,
+		Fantasy = true, Antique = true, Gotham = true, GothamMedium = true, GothamBold = true,
+		GothamBlack = true, BuilderSans = true, BuilderSansMedium = true, BuilderSansBold = true,
+		Roboto = true, RobotoCondensed = true, RobotoMono = true, Nunito = true, Oswald = true,
+		Ubuntu = true, Michroma = true, Sarpanch = true, TitilliumWeb = true, Jura = true,
+		Kalam = true, PatrickHand = true, PermanentMarker = true, SpecialElite = true,
+		LuckiestGuy = true, Merriweather = true, JosefinSans = true, IndieFlower = true,
+		GrenzeGotisch = true, FredokaOne = true, Fondamento = true, DenkOne = true,
+		Creepster = true, Bangers = true, AmaticSC = true, Unknown = true },
+	HorizontalAlignment = { Center = true, Left = true, Right = true },
+	ScrollingDirection = { X = true, Y = true, XY = true },
+	SortOrder = { Custom = true, LayoutOrder = true, Name = true },
+	TextTruncate = { None = true, AtEnd = true, SplitWord = true },
+	TextXAlignment = { Center = true, Left = true, Right = true },
+	TextYAlignment = { Center = true, Top = true, Bottom = true },
+	UserInputType = { None = true, Touch = true, MouseButton1 = true, MouseButton2 = true,
+		MouseButton3 = true, MouseMovement = true, MouseWheel = true, Keyboard = true, Focus = true,
+		TextInput = true, Accelerometer = true, Gyro = true, Gamepad1 = true, Gamepad2 = true,
+		Gamepad3 = true, Gamepad4 = true, Gamepad5 = true, Gamepad6 = true, Gamepad7 = true,
+		Gamepad8 = true },
+	VerticalAlignment = { Center = true, Top = true, Bottom = true },
+	ZIndexBehavior = { Global = true, Sibling = true },
+}
+
+harness.enumMembers = ENUM_MEMBERS
+
+-- Enum.FillDirection.Horizontal, Enum.Font.Gotham — every level resolves to its
+-- own name, memoised so identity is stable. An unknown name raises, as Roblox does.
 local function proxy(path)
 	return setmetatable({}, {
 		__index = function(self, key)
+			if path == nil then
+				if ENUM_MEMBERS[key] == nil then
+					error(("Enum.%s is not a valid member of Enum"):format(tostring(key)), 2)
+				end
+			elseif not path:find(".", 1, true) then
+				local members = ENUM_MEMBERS[path]
+				if members ~= nil and members[key] == nil then
+					error(("Enum.%s.%s is not a valid member of Enum.%s"):format(path, tostring(key), path), 2)
+				end
+			end
 			local value = proxy(path and (path .. "." .. key) or key)
 			rawset(self, key, value)
 			return value
