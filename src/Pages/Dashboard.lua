@@ -112,7 +112,7 @@ local function valueRow(body, label, badged, scale, order)
 	value.TextColor3 = Theme.color(badged and badged.value and "text" or "textDim")
 	value.TextSize = Layout.target(scale, 12)
 	value.TextXAlignment = Enum.TextXAlignment.Right
-	value.Size = UDim2.new(1, -60, 0, 0)
+	value.Size = UDim2.new(1, 0, 0, 0)
 	value.AutomaticSize = Enum.AutomaticSize.Y
 	value.LayoutOrder = 2
 	value:SetAttribute("Value", true)

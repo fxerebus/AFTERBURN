@@ -106,6 +106,9 @@ function Layout.metrics(width, height)
 		medium = medium,
 		wide = wide,
 		railMode = if_else(compact, "icons", "full"),
+		-- Compact navigates from a horizontal top strip; the rail only exists
+		-- from medium up, so there is exactly one surface at any width.
+		navMode = if_else(compact, "tabs", "rail"),
 		sidebarMode = if_else(wide, "docked", "overlay"),
 		target = target,
 		targetPx = math.floor(target * scale + 0.5), -- effective, for assertions
@@ -113,7 +116,11 @@ function Layout.metrics(width, height)
 		railWidth = math.ceil(railWidth * scale),
 		-- Content must keep real width; at compact the drawer overlays it, so
 		-- nothing is subtracted for the rail.
-		contentWidth = math.max(Config.layout.contentMin, math.floor(w - (if_else(wide, railWidth * scale, 0) + 2 * Layout.gutter(scale)))),
+		-- Compact has no rail at all: content takes the whole body width and the
+		-- horizontal offset is zero. Only a docked wide rail ever subtracts.
+		contentWidth = if_else(compact, math.floor(w), math.max(Config.layout.contentMin, math.floor(w - (if_else(wide, railWidth * scale, 0) + 2 * Layout.gutter(scale))))),
+		contentOffset = if_else(compact, 0, math.ceil(railWidth * scale)),
+		tabStripHeight = if_else(compact, math.ceil(Layout.target(scale)), 0),
 		windowWidth = clamp(math.floor(w * (if_else(compact, 0.94, 0.82))), Config.layout.windowMin, Config.layout.windowMax),
 		windowHeightCap = math.floor(h * 0.9),
 		-- Height also capped at 90% of the viewport so the window never runs off
@@ -133,7 +140,7 @@ function Layout.reflects(metrics)
 		return false
 	end
 	if metrics.compact then
-		return metrics.railMode == "icons" and metrics.sidebarMode == "overlay"
+		return metrics.navMode == "tabs" and metrics.railMode == "icons" and metrics.sidebarMode == "overlay"
 	end
 	if metrics.wide then
 		return metrics.sidebarMode == "docked"

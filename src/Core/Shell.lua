@@ -27,6 +27,7 @@ local state = {
 	metrics = nil,
 	parts = {},
 	railButtons = {},
+	tabButtons = {},
 	drawerOpen = false,
 	drag = nil,
 	connections = {},
@@ -260,6 +261,39 @@ local function buildContent(parent, metrics)
 	return content
 end
 
+local function buildTabStrip(parent, metrics)
+	local strip = Instance.new("ScrollingFrame")
+	strip.Name = "TabStrip"
+	strip.BackgroundColor3 = Theme.color("header")
+	strip.BackgroundTransparency = 0
+	strip.BorderSizePixel = 0
+	strip.ScrollBarThickness = 2
+	strip.ScrollBarImageColor3 = Theme.color("border")
+	strip.ScrollingDirection = Enum.ScrollingDirection.X
+	strip.CanvasSize = UDim2.new(0, 0, 0, 0)
+	strip.ClipsDescendants = true
+	strip.Visible = false
+	strip.Size = UDim2.new(1, 0, 0, Layout.target(metrics.scale, 52))
+	strip.Position = UDim2.new(0, 0, 0, 0)
+	strip.Parent = parent
+
+	local list = Instance.new("UIListLayout")
+	list.FillDirection = Enum.FillDirection.Horizontal
+	list.Padding = pad(math.max(2, metrics.gutter // 2))
+	list.VerticalAlignment = Enum.VerticalAlignment.Center
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = strip
+
+	local inner = Instance.new("UIPadding")
+	inner.PaddingLeft = pad(metrics.gutter)
+	inner.PaddingRight = pad(metrics.gutter)
+	inner.Parent = strip
+
+	AB.Require("Core.UIManager").themed(strip, { BackgroundColor3 = "header" })
+	state.parts.tabStrip = strip
+	return strip
+end
+
 local function buildStatusBar(parent, metrics)
 	local bar = Instance.new("Frame")
 	bar.Name = "StatusBar"
@@ -299,6 +333,15 @@ local function setDrawer(open)
 	local drawer = state.parts.drawer
 	local scrim = state.parts.scrim
 	if not drawer then
+		return
+	end
+
+	-- Compact has no rail and no drawer: the top strip is the navigation.
+	if state.metrics and state.metrics.navMode == "tabs" then
+		drawer.Visible = false
+		if scrim then
+			scrim.Visible = false
+		end
 		return
 	end
 
@@ -381,6 +424,10 @@ function Shell.select(id)
 			button.BackgroundColor3 = Theme.color(tabId == id and "railActive" or "rail")
 			button.BackgroundTransparency = tabId == id and 0 or 1
 		end
+		for tabId, button in pairs(state.tabButtons) do
+			button.BackgroundColor3 = Theme.color(tabId == id and "accent" or "bgElevated")
+			button.BackgroundTransparency = tabId == id and 0 or 1
+		end
 		if state.metrics and state.metrics.sidebarMode ~= "docked" then
 			setDrawer(false)
 		end
@@ -397,6 +444,7 @@ function Shell.reflow(metrics)
 
 	local header = state.parts.header
 	local rail = state.parts.rail
+	local strip = state.parts.tabStrip
 	local content = state.parts.content
 	local drawer = state.parts.drawer
 	local bar = state.parts.statusBar
@@ -404,19 +452,38 @@ function Shell.reflow(metrics)
 	if header then
 		header.Size = UDim2.new(1, 0, 0, Layout.target(metrics.scale, 46))
 	end
+	local tabs = metrics.navMode == "tabs"
+	local stripH = if_else(tabs, Layout.target(metrics.scale, 52), 0)
+
+	-- MENU only drives the drawer, which does not exist at compact.
+	if state.parts.hamburger then
+		state.parts.hamburger.Visible = not tabs
+	end
+
+	if strip then
+		strip.Visible = tabs and #state.nav.tabs > 0
+		strip.Size = UDim2.new(1, 0, 0, Layout.target(metrics.scale, 52))
+		strip.Position = UDim2.new(0, 0, 0, 0)
+		-- Wide enough canvas that the last tabs sit off the edge: the strip
+		-- scrolls rather than shrinking its targets.
+		strip.CanvasSize = UDim2.new(0, #state.nav.tabs * (Layout.target(metrics.scale, 74) + metrics.gutter) + metrics.gutter, 0, 0)
+	end
 	if rail then
 		rail.Size = UDim2.new(0, metrics.railWidth, 1, -(Layout.target(metrics.scale, 46) + Layout.target(metrics.scale, 18)))
-		rail.Visible = #state.nav.tabs > 0
+		rail.Visible = (not tabs) and #state.nav.tabs > 0
 	end
 	if content then
-		-- Compact: the drawer overlays, so content keeps the full row and a
-		-- hard floor rather than being squeezed beside the rail.
-		local beside = metrics.wide
-		local offset = beside and (metrics.railWidth + metrics.gutter) or 0
-		content.Size = UDim2.new(1, -(offset), 0, 0)
-		content.Size = UDim2.new(1, -offset, 1, -Layout.target(metrics.scale, 46 + 18))
-		content.Position = UDim2.new(0, offset, 0, Layout.target(metrics.scale, 46))
+		-- Compact: no rail beside it, so the full body width and no offset.
+		local offset = if_else(tabs, 0, (metrics.wide and (metrics.railWidth + metrics.gutter)) or 0)
+		content.Size = UDim2.new(1, -offset, 1, -(Layout.target(metrics.scale, 46 + 18) + stripH))
+		content.Position = UDim2.new(0, offset, 0, stripH)
 		content.ClipsDescendants = true
+	end
+	for tabId, button in pairs(state.tabButtons) do
+		local tabRecord = state.nav.byId[tabId]
+		button.Text = tabRecord and tabRecord.title or tabId
+		button.TextSize = Layout.target(metrics.scale, 11)
+		button.Size = UDim2.new(0, Layout.target(metrics.scale, 74), 0, Layout.target(metrics.scale))
 	end
 
 	-- Labels disappear on compact instead of shrinking into ellipses.
@@ -492,6 +559,7 @@ function Shell.mount(ctx, metrics)
 
 	local rail = buildRail(row, metrics)
 	local content = buildContent(row, metrics)
+	local strip = buildTabStrip(row, metrics)
 
 	-- Scrim sits above content, below the drawer, so a tap outside closes it.
 	local scrim = Instance.new("TextButton")
@@ -581,6 +649,21 @@ function Shell.mount(ctx, metrics)
 				end,
 			})
 			UIManager.registerButton(rowButton)
+
+			local tabButton = Buttons.create({
+				text = record.title,
+				role = "icon",
+				scale = scale,
+				width = 74,
+				parent = strip,
+				order = record.order,
+				name = "Tab_" .. record.id,
+				onClick = function()
+					Shell.select(record.id)
+				end,
+			})
+			UIManager.registerButton(tabButton)
+			state.tabButtons[record.id] = tabButton
 		end
 	end
 
@@ -633,6 +716,7 @@ function Shell.destroy()
 
 	state.parts = {}
 	state.railButtons = {}
+	state.tabButtons = {}
 	state.ctx = nil
 	state.metrics = nil
 	state.drawerOpen = false
