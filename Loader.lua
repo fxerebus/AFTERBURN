@@ -33,7 +33,7 @@ local BUNDLE = "Afterburn.lua"
 local VERSION_FILE = "VERSION"
 
 -- Bumped alongside VERSION. A loader older than the published VERSION refuses to run.
-local LOADER_VERSION = "1.0.0"
+local LOADER_VERSION = "1.0.1"
 
 local RAW_BASE = ("https://raw.githubusercontent.com/%s/%s/%s/"):format(OWNER, REPO, BRANCH)
 
