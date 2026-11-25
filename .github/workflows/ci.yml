@@ -1,0 +1,44 @@
+name: ci
+
+# Runs on every push to main and on every pull request. Nothing is published
+# unless this workflow is green — publish.yml is gated on its conclusion.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: checks (lua 5.4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install lua 5.4
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.4
+          lua5.4 -v
+
+      - name: suite
+        run: lua5.4 tests/run_all.lua
+
+      - name: build
+        run: lua5.4 Build.lua
+
+      - name: bundle compiles standalone
+        run: |
+          test -s dist/Afterburn.lua
+          lua5.4 -e 'assert(loadfile("dist/Afterburn.lua"))'
+
+      - name: bundle is stamped
+        run: |
+          grep -q "Version" dist/Afterburn.lua
+          grep -q "commit" dist/Afterburn.lua
+
+      - name: loader compiles
+        run: lua5.4 -e 'assert(loadfile("Loader.lua"))'

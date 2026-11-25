@@ -1,0 +1,14 @@
+# AFTERBURN — keep the build artefact out of version control.
+# The bundle is regenerated with `lua Build.lua`; src/ is the source of truth.
+dist/
+
+# Editor / OS noise
+.vscode/*.log
+*.tmp
+*.bak
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Local scratch (never committed)
+scratch/

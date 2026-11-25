@@ -1,0 +1,88 @@
+name: publish
+
+# Gated on ci completing successfully, so a red suite can never publish.
+# Uses workflow_run rather than a plain `on: push` because the gate has to be a
+# separate workflow's conclusion, not something this file could reorder away.
+
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-dist
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: install lua 5.4
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.4
+
+      - name: refuse a stale version
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          test -n "$version" || { echo "VERSION is empty"; exit 1; }
+          git fetch origin dist --depth=1 || true
+          if git rev-parse --verify -q origin/dist >/dev/null; then
+            git show origin/dist/VERSION > /tmp/published.txt || true
+            python3 - "$version" <<'PY'
+          import sys, pathlib
+          new = sys.argv[1]
+          old = pathlib.Path('/tmp/published.txt').read_text().strip()
+          def key(v):
+              return [int(p) for p in v.split('.') if p.isdigit()]
+          if key(new) <= key(old):
+              sys.exit(f"VERSION {new} is not greater than published {old}")
+          PY
+          fi
+          echo "publishing $version"
+
+      - name: build
+        run: lua5.4 Build.lua
+
+      - name: bundle compiles standalone
+        run: |
+          set -euo pipefail
+          test -s dist/Afterburn.lua
+          lua5.4 -e 'assert(loadfile("dist/Afterburn.lua"))'
+
+      - name: bundle is stamped with this version and commit
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          grep -q "Version $version" dist/Afterburn.lua
+          grep -q "commit ${GITHUB_SHA:0:7}" dist/Afterburn.lua || \
+            grep -q "commit nogit" dist/Afterburn.lua
+
+      - name: assemble and push the dist branch
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          rm -rf /tmp/publish
+          mkdir -p /tmp/publish
+          cp dist/Afterburn.lua /tmp/publish/Afterburn.lua
+          cp VERSION /tmp/publish/VERSION
+          cd /tmp/publish
+          git init -q
+          git checkout -q -b dist
+          git add Afterburn.lua VERSION
+          git -c user.name="afterburn-ci" -c user.email="ci@afterburn.invalid" \
+            commit -q -m "publish v$version"
+          git push --force "https://x-access-token:${TOKEN}@github.com/${REPO}.git" dist
