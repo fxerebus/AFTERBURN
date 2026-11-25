@@ -1,0 +1,10 @@
+{
+  "files.associations": { "*.lua": "lua" },
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "editor.tabSize": 4,
+  "editor.rulers": [100],
+  "[lua]": { "editor.tabSize": 4 },
+  "terminal.integrated.cwd": "${workspaceFolder}"
+}

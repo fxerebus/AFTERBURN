@@ -1,0 +1,32 @@
+{
+  // AFTERBURN task runner. Requires the Lua 5.4 binary on PATH (see README, section 2).
+  // Extension: "Lua" by sumneko (or "Lua Debug" by actboy168) exposes these.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "AFTERBURN: run full check suite",
+      "type": "lua",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/run_all.lua",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopOnEntry": false
+    },
+    {
+      "name": "AFTERBURN: harness self-test only",
+      "type": "lua",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/selftest.lua",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "AFTERBURN: build bundle",
+      "type": "lua",
+      "request": "launch",
+      "program": "${workspaceFolder}/Build.lua",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}
